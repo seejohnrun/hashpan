@@ -79,16 +79,16 @@ void doit(unsigned long start, unsigned long num_values) {
     }
         
     // now we're ready to SHA1 the keys
-    short key_length = 5;
+    short hash_length = 5 * sizeof(cl_uint);
     void* cl_keys = gcl_malloc(sizeof(cl_uchar) * count * 16, numbers, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR);
-    void* cl_results = gcl_malloc(sizeof(cl_uint) * count * key_length, NULL, CL_MEM_WRITE_ONLY);
-    void* hashes = malloc(sizeof(cl_uint) * count * key_length);
+    void* cl_results = gcl_malloc(count * hash_length, NULL, CL_MEM_WRITE_ONLY);
+    void* hashes = malloc(count * hash_length);
     dispatch_sync(queue2, ^{
         size_t wgs;
         gcl_get_kernel_block_workgroup_info(sha1_crypt_kernel_kernel, CL_KERNEL_WORK_GROUP_SIZE, sizeof(wgs), &wgs, NULL);
         cl_ndrange range = {1, {0, 0, 0}, {count, 0, 0}, {wgs, 0, 0}};
         sha1_crypt_kernel_kernel(&range, (cl_uint*)cl_keys, (cl_uint*)cl_results);
-        gcl_memcpy(hashes, cl_results, sizeof(cl_uint) * count * key_length);
+        gcl_memcpy(hashes, cl_results, count * hash_length);
     });
     printf("produced SHA\n");
     
@@ -104,21 +104,23 @@ void doit(unsigned long start, unsigned long num_values) {
             memcpy(temp, pre, 16 * sizeof(cl_uchar));
             printf("number: %s\n", temp);
             
-            cl_uchar sha[sizeof(cl_uint) * key_length];
+            cl_uchar sha[hash_length];
             pre = hashes;
-            pre += j * sizeof(cl_uint) * key_length;
-            memcpy(sha, pre, sizeof(cl_uint) * key_length);
+            pre += j * hash_length;
+            memcpy(sha, pre, hash_length);
             printf("sha: %s\n", sha);
             
             printf("raw: %s\n", lines[i]);
             printf("com: %s\n", choices[i]);
             
-            if (memcmp(choices[i], ptr, sizeof(cl_uint) * key_length) == 0) {
+            if (memcmp(choices[i], ptr, hash_length) == 0) {
                 printf("found: %hhu!\n", numbers[j]);
             }
 
+            exit(0);
+            
         }
-        ptr += key_length * sizeof(cl_uint);
+        ptr += hash_length * sizeof(cl_uint);
     }
     
     // Clean up after ourselves
