@@ -11,41 +11,49 @@
 #include <OpenCL/opencl.h>
 
 #include "base64.h"
+#include "hashset.h"
 #include "luhn_check.cl.h"
 #include "msha_kernel.cl.h"
 
 void doit(unsigned long start, unsigned long num_values) {
     
+    printf("start\n");
+    
     // read in all lines
-    char lines[1022][29];
+    int line_count = 1022;
+    char lines[line_count][29];
     FILE *fp = fopen("/Users/john/Development/PanHandle/data/hashes.txt", "r");
-    for (int i = 0; i < 1022; i++) { // TODO flex
+    for (int i = 0; i < line_count; i++) { // TODO flex
         fgets(lines[i], 29, fp);
     }
     fclose(fp);
     
     // decode each line
     // TODO note for why i did this here
-    cl_uchar choices[1022][20];
-    for (int i = 0; i < 1022; i++) { // TODO flex
-        Base64decode((void *)choices[i], lines[i]);
+    cl_uchar temp[20];
+    hashset_t set = hashset_create();
+    for (int i = 0; i < line_count; i++) { // TODO flex
+        Base64decode((void *)temp, lines[i]);
+        hashset_add(set, temp);
     }
         
     // Create out dispatch queue, prefer GPU but allow fallback
-    dispatch_queue_t queue = gcl_create_dispatch_queue(CL_DEVICE_TYPE_ALL, NULL);
+    dispatch_queue_t queue = gcl_create_dispatch_queue(CL_DEVICE_TYPE_GPU, NULL);
     if (queue == NULL) {
-        queue = gcl_create_dispatch_queue(CL_DEVICE_TYPE_GPU, NULL);
+        queue = gcl_create_dispatch_queue(CL_DEVICE_TYPE_CPU, NULL);
     }
 
-    dispatch_queue_t queue2 = gcl_create_dispatch_queue(CL_DEVICE_TYPE_ALL, NULL);
+    dispatch_queue_t queue2 = gcl_create_dispatch_queue(CL_DEVICE_TYPE_GPU, NULL);
     if (queue2 == NULL) {
         queue2 = gcl_create_dispatch_queue(CL_DEVICE_TYPE_CPU, NULL);
     }
     
-    // perform our luhn checks, setting anything to 0 that doesn't pass
-    // COOL NOTE: We actually don't need to generate the numbers to use beforehand,
-    // because we can use the OpenCL index (gid) to construct the number on the fly as
-    // long as we have the start number
+    /**
+     Perform our luhn checks, setting anything to 0 that doesn't pass
+     COOLNOTE: We actually don't need to generate the numbers to use beforehand,
+     because we can use the OpenCL index (gid) to construct the number on the fly as
+     long as we have the start number
+     */
     printf("starting with %ld at %ld\n", num_values, start);
     cl_ulong* candidates = (cl_ulong*)malloc(sizeof(cl_ulong) * num_values); // TODO reuse this array on subsequent runs
     void* cl_candidates = gcl_malloc(sizeof(cl_ulong) * num_values, candidates, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR);
@@ -80,7 +88,7 @@ void doit(unsigned long start, unsigned long num_values) {
     short hash_length = 5 * sizeof(cl_uint); // 160 bits
     void* cl_keys = gcl_malloc(sizeof(cl_uchar) * count * 16, numbers, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR);
     void* cl_results = gcl_malloc(count * hash_length, NULL, CL_MEM_WRITE_ONLY);
-    void* hashes = malloc(((size_t)(count * hash_length)));
+    void* hashes = malloc(hash_length * count);
     dispatch_sync(queue2, ^{
         cl_ndrange range = {1, {0, 0, 0}, {count, 0, 0}, {NULL, 0, 0}};
         sha1_crypt_kernel_kernel(&range, cl_keys, cl_results);
@@ -88,17 +96,17 @@ void doit(unsigned long start, unsigned long num_values) {
     });
     printf("produced SHA\n");
     
+    
+    printf("comparing\n");
     // we've got outselves the keys, and now we can go through them looking for matches
     // TODO use hashmap of some sort for comparison
-    for (int i = 0; i < 1022; i++) {
-        void *ptr = hashes;
-        for (int j = 0; j < count; j++) {
-            if (memcmp(choices[i], ptr, hash_length) == 0) {
-                printf("found: %hhu!\n", numbers[j]);
-            }
+    for (int i = 0; i < count; i++) {
+        if (hashset_is_member(set, ptr)) {
+            printf("found: %hhu!\n", numbers[i]);
         }
         ptr += hash_length * sizeof(cl_uint);
     }
+    printf("done\n");
     
     // Clean up after ourselves
     gcl_free(cl_candidates); gcl_free(cl_keys); gcl_free(cl_results);
@@ -111,8 +119,8 @@ void doit(unsigned long start, unsigned long num_values) {
 int main(int argc, const char * argv[]) {
     
     long start = 4242424242424242;
-    long step = 1024;
-    for (int i = 0; i < 1; i++) {
+    long step = 1024 * 1024;
+    for (int i = 0; i < 10; i++) {
         doit(start, step);
         start += step;
     }
