@@ -19,7 +19,6 @@ void doit(unsigned long start, unsigned long num_values, PAN *set) {
     
     printf("start\n");
     
-    
     // Create out dispatch queue, prefer GPU but allow fallback
     dispatch_queue_t queue = gcl_create_dispatch_queue(CL_DEVICE_TYPE_GPU, NULL);
     if (queue == NULL) {
@@ -68,6 +67,7 @@ void doit(unsigned long start, unsigned long num_values, PAN *set) {
     }
     
     // now we're ready to SHA1 the keys
+    printf("producing SHA\n");
     short hash_length = 5 * sizeof(cl_uint); // 160 bits
     void* cl_keys = gcl_malloc(sizeof(cl_char) * count * 16, numbers, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR);
     void* cl_results = gcl_malloc(count * hash_length, NULL, CL_MEM_WRITE_ONLY);
@@ -77,8 +77,8 @@ void doit(unsigned long start, unsigned long num_values, PAN *set) {
         sha1_crypt_kernel_kernel(&range, cl_keys, cl_results);
         gcl_memcpy(hashes, cl_results, count * hash_length);
     });
-    printf("produced SHA\n");
     
+    printf("looking\n");
     // we've got outselves the keys, and now we can go through them looking for matches
     char tmp[hash_length];
     char tmpname[17];
@@ -90,6 +90,7 @@ void doit(unsigned long start, unsigned long num_values, PAN *set) {
             printf("found: %s\n", tmpname);
         }
     }
+    printf("done\n");
     
     // Clean up after ourselves
     gcl_free(cl_candidates); gcl_free(cl_keys); gcl_free(cl_results);
@@ -121,9 +122,9 @@ int main(int argc, const char * argv[]) {
     }
     
     
-    long start = 4242424242420000;
+    long start = 4730550000000000L;
     long step = 1024 * 1024;
-    for (int i = 0; i < 1; i++) {
+    for (int i = 0; i < 1024 * 10; i++) {
         doit(start, step, set);
         start += step;
     }

@@ -5,9 +5,6 @@ typedef struct PAN {
     UT_hash_handle hh;
 } PAN;
 
-
-
-
 PAN* johnset_initialize() {
     PAN *pans = NULL;
     return pans;

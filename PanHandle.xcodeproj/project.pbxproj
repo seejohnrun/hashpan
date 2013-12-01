@@ -30,7 +30,6 @@
 
 /* Begin PBXFileReference section */
 		523D8935184674B600CB2861 /* msha_kernel.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; path = msha_kernel.cl; sourceTree = "<group>"; };
-		523D8938184674FC00CB2861 /* opencl_device_info.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = opencl_device_info.h; sourceTree = "<group>"; };
 		523D8939184683A900CB2861 /* base64.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = base64.c; sourceTree = "<group>"; };
 		523D893B184683BE00CB2861 /* base64.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = base64.h; sourceTree = "<group>"; };
 		5262456F18438C6400B4C5B9 /* PanHandle */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = PanHandle; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -54,15 +53,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		523D8937184674C100CB2861 /* jtr */ = {
-			isa = PBXGroup;
-			children = (
-				523D8935184674B600CB2861 /* msha_kernel.cl */,
-				523D8938184674FC00CB2861 /* opencl_device_info.h */,
-			);
-			name = jtr;
-			sourceTree = "<group>";
-		};
 		5262456618438C6400B4C5B9 = {
 			isa = PBXGroup;
 			children = (
@@ -83,7 +73,7 @@
 		5262457118438C6400B4C5B9 /* PanHandle */ = {
 			isa = PBXGroup;
 			children = (
-				523D8937184674C100CB2861 /* jtr */,
+				523D8935184674B600CB2861 /* msha_kernel.cl */,
 				5262457218438C6400B4C5B9 /* main.c */,
 				5262457D18438E7C00B4C5B9 /* luhn_check.cl */,
 				5262457418438C6400B4C5B9 /* PanHandle.1 */,
