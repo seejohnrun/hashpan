@@ -17,13 +17,15 @@
 
 void doit(unsigned long start, unsigned long num_values, PAN *set) {
 
+    printf("%lu - %li\n", start, num_values);
+    
     // Create out dispatch queue, prefer GPU but allow fallback
-    dispatch_queue_t queue = gcl_create_dispatch_queue(CL_DEVICE_TYPE_GPU, NULL);
+    dispatch_queue_t queue = gcl_create_dispatch_queue(CL_DEVICE_TYPE_CPU, NULL);
     if (queue == NULL) {
         queue = gcl_create_dispatch_queue(CL_DEVICE_TYPE_CPU, NULL);
     }
 
-    dispatch_queue_t queue2 = gcl_create_dispatch_queue(CL_DEVICE_TYPE_GPU, NULL);
+    dispatch_queue_t queue2 = gcl_create_dispatch_queue(CL_DEVICE_TYPE_CPU, NULL);
     if (queue2 == NULL) {
         queue2 = gcl_create_dispatch_queue(CL_DEVICE_TYPE_CPU, NULL);
     }
@@ -51,12 +53,13 @@ void doit(unsigned long start, unsigned long num_values, PAN *set) {
     }
     
     // and convert the leftovers into a char array
-    cl_char numbers[count * 16];
+    void *numbers = malloc(sizeof(cl_char) * 16 * count);
     void *ptr = numbers;
     for (int j = 0; j < num_values; j++) {
+        if (candidates[j] != 0) { }
         if (candidates[j] != 0) {
-            sprintf(ptr, "%lld", candidates[j]);
-            ptr += sizeof(cl_char) * 16;
+            sprintf(ptr, "%llu", candidates[j]);
+            ptr += 16 * sizeof(cl_char);
         }
     }
     
@@ -85,7 +88,7 @@ void doit(unsigned long start, unsigned long num_values, PAN *set) {
     
     // Clean up after ourselves
     gcl_free(cl_candidates); gcl_free(cl_keys); gcl_free(cl_results);
-    free(candidates); free(hashes);
+    free(candidates); free(hashes); free(numbers);
     dispatch_release(queue);
     dispatch_release(queue2);
     
@@ -123,9 +126,10 @@ PAN* construct_pan_lookup_set() {
 void check_iin(int iin, PAN* lookup_set) {
     long start = iin * 10000000000L;
     long step = 1024 * 1024;
-    for (int i = 0; i < 1024 * 10; i++) {
+    for (int i = 0; i < 9537; i++) {
         doit(start, step, lookup_set);
         start += step;
+        printf(".");
     }
 }
 

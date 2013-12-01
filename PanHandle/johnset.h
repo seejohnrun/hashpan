@@ -10,9 +10,9 @@ PAN* johnset_initialize() {
     return pans;
 }
 
-uint32_t jenkins_one_at_a_time_hash(char *key, size_t len)
+unsigned int jenkins_one_at_a_time_hash(char *key, size_t len)
 {
-    uint32_t hash, i;
+    unsigned int hash, i;
     for(hash = i = 0; i < len; ++i)
     {
         hash += key[i];
