@@ -16,9 +16,7 @@
 #include "msha_kernel.cl.h"
 
 void doit(unsigned long start, unsigned long num_values, PAN *set) {
-    
-    printf("start\n");
-    
+
     // Create out dispatch queue, prefer GPU but allow fallback
     dispatch_queue_t queue = gcl_create_dispatch_queue(CL_DEVICE_TYPE_GPU, NULL);
     if (queue == NULL) {
@@ -36,7 +34,6 @@ void doit(unsigned long start, unsigned long num_values, PAN *set) {
      because we can use the OpenCL index (gid) to construct the number on the fly as
      long as we have the start number
      */
-    printf("starting with %ld at %ld\n", num_values, start);
     cl_ulong* candidates = (cl_ulong*)malloc(sizeof(cl_ulong) * num_values);
     void* cl_candidates = gcl_malloc(sizeof(cl_ulong) * num_values, candidates, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR);
     dispatch_sync(queue, ^{
@@ -52,7 +49,6 @@ void doit(unsigned long start, unsigned long num_values, PAN *set) {
             count += 1;
         }
     }
-    printf("left with %ld after luhn\n", count);
     
     // and convert the leftovers into a char array
     cl_char numbers[count * 16];
@@ -65,18 +61,16 @@ void doit(unsigned long start, unsigned long num_values, PAN *set) {
     }
     
     // now we're ready to SHA1 the keys
-    printf("producing SHA\n");
     short hash_length = 5 * sizeof(cl_uint); // 160 bits
     void* cl_keys = gcl_malloc(sizeof(cl_char) * count * 16, numbers, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR);
     void* cl_results = gcl_malloc(count * hash_length, NULL, CL_MEM_WRITE_ONLY);
     cl_char* hashes = (cl_char*)malloc(hash_length * count);
     dispatch_sync(queue2, ^{
-        cl_ndrange range = {1, {0, 0, 0}, {count, 0, 0}, {NULL, 0, 0}};
+        cl_ndrange range = {1, {0, 0}, {count, 0}, {0, 0}};
         sha1_crypt_kernel_kernel(&range, cl_keys, cl_results);
         gcl_memcpy(hashes, cl_results, count * hash_length);
     });
     
-    printf("looking\n");
     // we've got outselves the keys, and now we can go through them looking for matches
     char tmp[hash_length];
     char tmpname[17];
@@ -88,7 +82,6 @@ void doit(unsigned long start, unsigned long num_values, PAN *set) {
             printf("found: %s\n", tmpname);
         }
     }
-    printf("done\n");
     
     // Clean up after ourselves
     gcl_free(cl_candidates); gcl_free(cl_keys); gcl_free(cl_results);
