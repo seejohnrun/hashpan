@@ -37,7 +37,7 @@ void doit(unsigned long start, unsigned long num_values, PAN *set) {
      long as we have the start number
      */
     printf("starting with %ld at %ld\n", num_values, start);
-    cl_ulong* candidates = (cl_ulong*)malloc(sizeof(cl_ulong) * num_values); // TODO reuse this array on subsequent runs
+    cl_ulong* candidates = (cl_ulong*)malloc(sizeof(cl_ulong) * num_values);
     void* cl_candidates = gcl_malloc(sizeof(cl_ulong) * num_values, candidates, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR);
     dispatch_sync(queue, ^{
         size_t wgs;
@@ -103,7 +103,8 @@ void doit(unsigned long start, unsigned long num_values, PAN *set) {
 /**
  Here we construct a Set that we can use to look up whether or not
  a given hash we try is in our original set.  The lookups, they're
- almost toooo fast
+ almost toooo fast.  Also, we make sure to Base64decode here, so
+ we're not doing it repeatedly later on
  */
 PAN* construct_pan_lookup_set() {
     // read in all lines
@@ -117,10 +118,9 @@ PAN* construct_pan_lookup_set() {
     fclose(fp);
     
     // decode each line
-    // TODO note for why i did this here
     char temp[21];
     PAN *set = johnset_initialize();
-    for (int i = 0; i < line_count; i++) { // TODO flex
+    for (int i = 0; i < line_count; i++) {
         Base64decode(temp, lines[i]);
         johnset_add(&set, temp);
     }
@@ -128,6 +128,7 @@ PAN* construct_pan_lookup_set() {
     return set;
 }
 
+// go at it in batches
 int main(int argc, const char * argv[]) {
     
     PAN *lookup_set = construct_pan_lookup_set();

@@ -175,7 +175,7 @@ __kernel void sha1_crypt_kernel(__global char* message, __global char* answer)
     
     // perform hashing
     SHA1Context context;
-    SHA1Reset(&context); // TODO needed?
+    SHA1Reset(&context);
     SHA1Input(&context, temp, message_length);
     SHA1Result(&context);
 
