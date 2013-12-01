@@ -15,17 +15,15 @@
 #include "luhn_check.cl.h"
 #include "msha_kernel.cl.h"
 
-void doit(unsigned long start, unsigned long num_values, PAN *set) {
-
-    printf("%lu - %li\n", start, num_values);
+void doit(cl_ulong start, cl_ulong num_values, PAN *set) {
     
     // Create out dispatch queue, prefer GPU but allow fallback
-    dispatch_queue_t queue = gcl_create_dispatch_queue(CL_DEVICE_TYPE_CPU, NULL);
+    dispatch_queue_t queue = gcl_create_dispatch_queue(CL_DEVICE_TYPE_GPU, NULL);
     if (queue == NULL) {
         queue = gcl_create_dispatch_queue(CL_DEVICE_TYPE_CPU, NULL);
     }
 
-    dispatch_queue_t queue2 = gcl_create_dispatch_queue(CL_DEVICE_TYPE_CPU, NULL);
+    dispatch_queue_t queue2 = gcl_create_dispatch_queue(CL_DEVICE_TYPE_GPU, NULL);
     if (queue2 == NULL) {
         queue2 = gcl_create_dispatch_queue(CL_DEVICE_TYPE_CPU, NULL);
     }
@@ -40,44 +38,35 @@ void doit(unsigned long start, unsigned long num_values, PAN *set) {
     void* cl_candidates = gcl_malloc(sizeof(cl_ulong) * num_values, candidates, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR);
     dispatch_sync(queue, ^{
         cl_ndrange range = {1, {0, 0}, {num_values, 0}, {0, 0}};
-        luhn_check_kernel(&range, start, (cl_ulong*)cl_candidates);
+        luhn_append_kernel(&range, start, (cl_ulong*)cl_candidates);
         gcl_memcpy(candidates, cl_candidates, sizeof(cl_ulong) * num_values);
     });
     
-    // count the number of remaining numbers
-    unsigned long count = 0;
-    for (int j = 0; j < num_values; j++) {
-        if (candidates[j] != 0) {
-            count += 1;
-        }
-    }
-    
-    // and convert the leftovers into a char array
-    void *numbers = malloc(sizeof(cl_char) * 16 * count);
+    // convert the numbers into a char array
+    unsigned long long num;
+    void *numbers = malloc(sizeof(cl_char) * 16 * num_values + 1);
     void *ptr = numbers;
     for (int j = 0; j < num_values; j++) {
-        if (candidates[j] != 0) { }
-        if (candidates[j] != 0) {
-            sprintf(ptr, "%llu", candidates[j]);
-            ptr += 16 * sizeof(cl_char);
-        }
+        num = (start + j) * 10L + candidates[j];
+        snprintf(ptr, 17, "%llu", num);
+        ptr += 16 * sizeof(cl_char);
     }
     
     // now we're ready to SHA1 the keys
     short hash_length = 5 * sizeof(cl_uint); // 160 bits
-    void* cl_keys = gcl_malloc(sizeof(cl_char) * count * 16, numbers, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR);
-    void* cl_results = gcl_malloc(count * hash_length, NULL, CL_MEM_WRITE_ONLY);
-    cl_char* hashes = (cl_char*)malloc(hash_length * count);
+    void* cl_keys = gcl_malloc(sizeof(cl_char) * num_values * 16, numbers, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR);
+    void* cl_results = gcl_malloc(num_values * hash_length, NULL, CL_MEM_WRITE_ONLY);
+    cl_char* hashes = (cl_char*)malloc(hash_length * num_values);
     dispatch_sync(queue2, ^{
-        cl_ndrange range = {1, {0, 0}, {count, 0}, {0, 0}};
+        cl_ndrange range = {1, {0, 0}, {num_values, 0}, {0, 0}};
         sha1_crypt_kernel_kernel(&range, cl_keys, cl_results);
-        gcl_memcpy(hashes, cl_results, count * hash_length);
+        gcl_memcpy(hashes, cl_results, num_values * hash_length);
     });
     
     // we've got outselves the keys, and now we can go through them looking for matches
     char tmp[hash_length];
     char tmpname[17];
-    for (int i = 0; i < count; i++) {
+    for (int i = 0; i < num_values; i++) {
         memcpy(tmp, &hashes[i * hash_length], hash_length);
         if (johnset_exists(set, tmp) != 0) {
             memcpy(tmpname, &numbers[i * 16], 16);
@@ -124,9 +113,9 @@ PAN* construct_pan_lookup_set() {
 
 // check over an individual IIN
 void check_iin(int iin, PAN* lookup_set) {
-    long start = iin * 10000000000L;
+    cl_ulong start = iin * 1000000000L;
     long step = 1024 * 1024;
-    for (int i = 0; i < 9537; i++) {
+    for (int i = 0; i < 100; i++) { // TODO only need to go to a billion
         doit(start, step, lookup_set);
         start += step;
         printf(".");
