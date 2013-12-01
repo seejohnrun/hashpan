@@ -40,21 +40,19 @@ void doit(unsigned long start, unsigned long num_values, PAN *set) {
     cl_ulong* candidates = (cl_ulong*)malloc(sizeof(cl_ulong) * num_values);
     void* cl_candidates = gcl_malloc(sizeof(cl_ulong) * num_values, candidates, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR);
     dispatch_sync(queue, ^{
-        size_t wgs;
-        gcl_get_kernel_block_workgroup_info(luhn_check_kernel, CL_KERNEL_WORK_GROUP_SIZE, sizeof(wgs), &wgs, NULL);
-        cl_ndrange range = {1, {0, 0, 0}, {num_values, 0, 0}, {wgs, 0, 0}};
+        cl_ndrange range = {1, {0, 0}, {num_values, 0}, {0, 0}};
         luhn_check_kernel(&range, start, (cl_ulong*)cl_candidates);
         gcl_memcpy(candidates, cl_candidates, sizeof(cl_ulong) * num_values);
     });
     
     // count the number of remaining numbers
-    unsigned int count = 0;
+    unsigned long count = 0;
     for (int j = 0; j < num_values; j++) {
         if (candidates[j] != 0) {
             count += 1;
         }
     }
-    printf("left with %d after luhn\n", count);
+    printf("left with %ld after luhn\n", count);
     
     // and convert the leftovers into a char array
     cl_char numbers[count * 16];
