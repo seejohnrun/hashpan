@@ -1,259 +1,192 @@
-/**
- 11/27/2013 Modified by John Crepezzi
- Fixed width (16) for avoiding memory overhead with SHA1 cracking
- */
+/* header */
 
-/*
- This code was largely inspired by
- pyrit opencl kernel sha1 routines, royger's sha1 sample,
- and md5_opencl_kernel.cl inside jtr.
- Copyright 2011 by Samuele Giovanni Tonon
- samu at linuxasylum dot net
- and Copyright (c) 2012, magnum
- This program comes with ABSOLUTELY NO WARRANTY; express or
- implied .
- This is free software, and you are welcome to redistribute it
- under certain conditions; as expressed here
- http://www.gnu.org/licenses/gpl-2.0.html
- */
+#define SHA1CircularShift(bits,word) ((((word) << (bits)) & 0xFFFFFFFF) | ((word) >> (32-(bits))))
 
-#include "opencl_device_info.h"
+typedef struct SHA1Context{
+	unsigned Message_Digest[5];
+	unsigned Length_Low;
+	unsigned Length_High;
+	unsigned char Message_Block[64];
+	int Message_Block_Index;
+	int Computed;
+	int Corrupted;
+} SHA1Context;
 
-#if gpu_amd(DEVICE_INFO)
-#define USE_BITSELECT
-#endif
+void SHA1Reset(SHA1Context *);
+int SHA1Result(SHA1Context *);
+void SHA1Input( SHA1Context *,const char *,unsigned);
 
-#if gpu_nvidia(DEVICE_INFO) || amd_gcn(DEVICE_INFO)
-inline uint SWAP32(uint x)
+/* implementation */
+
+void SHA1ProcessMessageBlock(SHA1Context *);
+void SHA1PadMessage(SHA1Context *);
+
+void SHA1Reset(SHA1Context *context){// ³õÊ¼»¯¶¯×÷
+	context->Length_Low             = 0;
+	context->Length_High            = 0;
+	context->Message_Block_Index    = 0;
+    
+	context->Message_Digest[0]      = 0x67452301;
+	context->Message_Digest[1]      = 0xEFCDAB89;
+	context->Message_Digest[2]      = 0x98BADCFE;
+	context->Message_Digest[3]      = 0x10325476;
+	context->Message_Digest[4]      = 0xC3D2E1F0;
+    
+	context->Computed   = 0;
+	context->Corrupted  = 0;
+}
+
+int SHA1Result(SHA1Context *context){// ³É¹¦·µ»Ø1£¬Ê§°Ü·µ»Ø0
+	if (context->Corrupted) {
+		return 0;
+	}
+	if (!context->Computed) {
+		SHA1PadMessage(context);
+		context->Computed = 1;
+	}
+	return 1;
+}
+
+void SHA1Input(SHA1Context *context,const char *message_array,unsigned length){
+	if (!length) return;
+    
+	if (context->Computed || context->Corrupted){
+		context->Corrupted = 1;
+		return;
+	}
+    
+	while(length-- && !context->Corrupted){
+		context->Message_Block[context->Message_Block_Index++] = (*message_array & 0xFF);
+        
+		context->Length_Low += 8;
+        
+		context->Length_Low &= 0xFFFFFFFF;
+		if (context->Length_Low == 0){
+			context->Length_High++;
+			context->Length_High &= 0xFFFFFFFF;
+			if (context->Length_High == 0) context->Corrupted = 1;
+		}
+        
+		if (context->Message_Block_Index == 64){
+			SHA1ProcessMessageBlock(context);
+		}
+		message_array++;
+	}
+}
+
+void SHA1ProcessMessageBlock(SHA1Context *context){
+	const unsigned K[] = {0x5A827999, 0x6ED9EBA1, 0x8F1BBCDC, 0xCA62C1D6 };
+	int         t;
+	unsigned    temp;
+	unsigned    W[80];
+	unsigned    A, B, C, D, E;
+    
+	for(t = 0; t < 16; t++) {
+        W[t] = ((unsigned) context->Message_Block[t * 4]) << 24;
+        W[t] |= ((unsigned) context->Message_Block[t * 4 + 1]) << 16;
+        W[t] |= ((unsigned) context->Message_Block[t * 4 + 2]) << 8;
+        W[t] |= ((unsigned) context->Message_Block[t * 4 + 3]);
+	}
+	
+	for(t = 16; t < 80; t++)  W[t] = SHA1CircularShift(1,W[t-3] ^ W[t-8] ^ W[t-14] ^ W[t-16]);
+    
+	A = context->Message_Digest[0];
+	B = context->Message_Digest[1];
+	C = context->Message_Digest[2];
+	D = context->Message_Digest[3];
+	E = context->Message_Digest[4];
+    
+	for(t = 0; t < 20; t++) {
+		temp =  SHA1CircularShift(5,A) + ((B & C) | ((~B) & D)) + E + W[t] + K[0];
+		temp &= 0xFFFFFFFF;
+		E = D;
+		D = C;
+		C = SHA1CircularShift(30,B);
+		B = A;
+		A = temp;
+	}
+	for(t = 20; t < 40; t++) {
+		temp = SHA1CircularShift(5,A) + (B ^ C ^ D) + E + W[t] + K[1];
+		temp &= 0xFFFFFFFF;
+		E = D;
+		D = C;
+		C = SHA1CircularShift(30,B);
+		B = A;
+		A = temp;
+	}
+	for(t = 40; t < 60; t++) {
+		temp = SHA1CircularShift(5,A) + ((B & C) | (B & D) | (C & D)) + E + W[t] + K[2];
+		temp &= 0xFFFFFFFF;
+		E = D;
+		D = C;
+		C = SHA1CircularShift(30,B);
+		B = A;
+		A = temp;
+	}
+	for(t = 60; t < 80; t++) {
+		temp = SHA1CircularShift(5,A) + (B ^ C ^ D) + E + W[t] + K[3];
+		temp &= 0xFFFFFFFF;
+		E = D;
+		D = C;
+		C = SHA1CircularShift(30,B);
+		B = A;
+		A = temp;
+	}
+	context->Message_Digest[0] = (context->Message_Digest[0] + A) & 0xFFFFFFFF;
+	context->Message_Digest[1] = (context->Message_Digest[1] + B) & 0xFFFFFFFF;
+	context->Message_Digest[2] = (context->Message_Digest[2] + C) & 0xFFFFFFFF;
+	context->Message_Digest[3] = (context->Message_Digest[3] + D) & 0xFFFFFFFF;
+	context->Message_Digest[4] = (context->Message_Digest[4] + E) & 0xFFFFFFFF;
+	context->Message_Block_Index = 0;
+}
+
+void SHA1PadMessage(SHA1Context *context){
+	if (context->Message_Block_Index > 55) {
+		context->Message_Block[context->Message_Block_Index++] = 0x80;
+		while(context->Message_Block_Index < 64)  context->Message_Block[context->Message_Block_Index++] = 0;
+		SHA1ProcessMessageBlock(context);
+		while(context->Message_Block_Index < 56) context->Message_Block[context->Message_Block_Index++] = 0;
+	} else {
+		context->Message_Block[context->Message_Block_Index++] = 0x80;
+		while(context->Message_Block_Index < 56) context->Message_Block[context->Message_Block_Index++] = 0;
+	}
+	context->Message_Block[56] = (context->Length_High >> 24 ) & 0xFF;
+	context->Message_Block[57] = (context->Length_High >> 16 ) & 0xFF;
+	context->Message_Block[58] = (context->Length_High >> 8 ) & 0xFF;
+	context->Message_Block[59] = (context->Length_High) & 0xFF;
+	context->Message_Block[60] = (context->Length_Low >> 24 ) & 0xFF;
+	context->Message_Block[61] = (context->Length_Low >> 16 ) & 0xFF;
+	context->Message_Block[62] = (context->Length_Low >> 8 ) & 0xFF;
+	context->Message_Block[63] = (context->Length_Low) & 0xFF;
+    
+	SHA1ProcessMessageBlock(context);
+}
+
+/* our kernel */
+__kernel void sha1_crypt_kernel(__global uchar* message, __global uchar* answer)
 {
-	x = rotate(x, 16U);
-	return ((x & 0x00FF00FF) << 8) + ((x >> 8) & 0x00FF00FF);
-}
-#else
-#define SWAP32(a)	(as_uint(as_uchar4(a).wzyx))
-#endif
+    uint message_length = 16;
+    uint gid = get_global_id(0);
 
-/* Macros for reading/writing chars from int32's */
-#define LASTCHAR_BE(buf, index, val) (buf)[(index)>>2] = ((buf)[(index)>>2] & (0xffffff00U << ((((index) & 3) ^ 3) << 3))) + ((val) << ((((index) & 3) ^ 3) << 3))
-
-#if gpu_amd(DEVICE_INFO) || no_byte_addressable(DEVICE_INFO)
-/* 32-bit stores */
-#define PUTCHAR_BE(buf, index, val) (buf)[(index)>>2] = ((buf)[(index)>>2] & ~(0xffU << ((((index) & 3) ^ 3) << 3))) + ((val) << ((((index) & 3) ^ 3) << 3))
-#else
-/* Byte-adressed stores */
-#define PUTCHAR_BE(buf, index, val) ((uchar*)(buf))[(index) ^ 3] = (val)
-#endif
-
-#define INIT_A			0x67452301
-#define INIT_B			0xefcdab89
-#define INIT_C			0x98badcfe
-#define INIT_D			0x10325476
-#define INIT_E			0xc3d2e1f0
-
-#define SQRT_2			0x5a827999
-#define SQRT_3			0x6ed9eba1
-
-#define K1			0x5a827999
-#define K2			0x6ed9eba1
-#define K3			0x8f1bbcdc
-#define K4			0xca62c1d6
-
-#ifdef USE_BITSELECT
-#define F1(x, y, z)	bitselect(z, y, x)
-#else
-#define F1(x, y, z)	(z ^ (x & (y ^ z)))
-#endif
-
-#define F2(x, y, z)		(x ^ y ^ z)
-
-#ifdef USE_BITSELECT
-#define F3(x, y, z)	(bitselect(x, y, z) ^ bitselect(x, 0U, y))
-#else
-#define F3(x, y, z)	((x & y) | (z & (x | y)))
-#endif
-
-#define F4(x, y, z)		(x ^ y ^ z)
-
-#if 1 // Significantly faster, at least on nvidia
-#define S(x, n)	rotate((x), (uint)(n))
-#else
-#define S(x, n)	((x << n) | ((x) >> (32 - n)))
-#endif
-
-#define R(t)	  \
-( \
-temp = W[(t -  3) & 0x0F] ^ W[(t - 8) & 0x0F] ^ \
-W[(t - 14) & 0x0F] ^ W[ t      & 0x0F], \
-( W[t & 0x0F] = S(temp, 1) ) \
-)
-
-#define R2(t)	  \
-( \
-S((W[(t -  3) & 0x0F] ^ W[(t - 8) & 0x0F] ^ \
-W[(t - 14) & 0x0F] ^ W[ t      & 0x0F]), 1) \
-)
-
-#define P1(a, b, c, d, e, x)	  \
-{ \
-e += S(a, 5) + F1(b, c, d) + K1 + x; b = S(b, 30); \
-}
-
-#define P2(a, b, c, d, e, x)	  \
-{ \
-e += S(a, 5) + F2(b, c, d) + K2 + x; b = S(b, 30); \
-}
-
-#define P3(a, b, c, d, e, x)	  \
-{ \
-e += S(a, 5) + F3(b, c, d) + K3 + x; b = S(b, 30); \
-}
-
-#define P4(a, b, c, d, e, x)	  \
-{ \
-e += S(a, 5) + F4(b, c, d) + K4 + x; b = S(b, 30); \
-}
-
-#define PZ(a, b, c, d, e)	  \
-{ \
-e += S(a, 5) + F1(b, c, d) + K1 ; b = S(b, 30); \
-}
-
-#define SHA1(A, B, C, D, E, W)	  \
-P1(A, B, C, D, E, W[0] ); \
-P1(E, A, B, C, D, W[1] ); \
-P1(D, E, A, B, C, W[2] ); \
-P1(C, D, E, A, B, W[3] ); \
-P1(B, C, D, E, A, W[4] ); \
-P1(A, B, C, D, E, W[5] ); \
-P1(E, A, B, C, D, W[6] ); \
-P1(D, E, A, B, C, W[7] ); \
-P1(C, D, E, A, B, W[8] ); \
-P1(B, C, D, E, A, W[9] ); \
-P1(A, B, C, D, E, W[10]); \
-P1(E, A, B, C, D, W[11]); \
-P1(D, E, A, B, C, W[12]); \
-P1(C, D, E, A, B, W[13]); \
-P1(B, C, D, E, A, W[14]); \
-P1(A, B, C, D, E, W[15]); \
-P1(E, A, B, C, D, R(16)); \
-P1(D, E, A, B, C, R(17)); \
-P1(C, D, E, A, B, R(18)); \
-P1(B, C, D, E, A, R(19)); \
-P2(A, B, C, D, E, R(20)); \
-P2(E, A, B, C, D, R(21)); \
-P2(D, E, A, B, C, R(22)); \
-P2(C, D, E, A, B, R(23)); \
-P2(B, C, D, E, A, R(24)); \
-P2(A, B, C, D, E, R(25)); \
-P2(E, A, B, C, D, R(26)); \
-P2(D, E, A, B, C, R(27)); \
-P2(C, D, E, A, B, R(28)); \
-P2(B, C, D, E, A, R(29)); \
-P2(A, B, C, D, E, R(30)); \
-P2(E, A, B, C, D, R(31)); \
-P2(D, E, A, B, C, R(32)); \
-P2(C, D, E, A, B, R(33)); \
-P2(B, C, D, E, A, R(34)); \
-P2(A, B, C, D, E, R(35)); \
-P2(E, A, B, C, D, R(36)); \
-P2(D, E, A, B, C, R(37)); \
-P2(C, D, E, A, B, R(38)); \
-P2(B, C, D, E, A, R(39)); \
-P3(A, B, C, D, E, R(40)); \
-P3(E, A, B, C, D, R(41)); \
-P3(D, E, A, B, C, R(42)); \
-P3(C, D, E, A, B, R(43)); \
-P3(B, C, D, E, A, R(44)); \
-P3(A, B, C, D, E, R(45)); \
-P3(E, A, B, C, D, R(46)); \
-P3(D, E, A, B, C, R(47)); \
-P3(C, D, E, A, B, R(48)); \
-P3(B, C, D, E, A, R(49)); \
-P3(A, B, C, D, E, R(50)); \
-P3(E, A, B, C, D, R(51)); \
-P3(D, E, A, B, C, R(52)); \
-P3(C, D, E, A, B, R(53)); \
-P3(B, C, D, E, A, R(54)); \
-P3(A, B, C, D, E, R(55)); \
-P3(E, A, B, C, D, R(56)); \
-P3(D, E, A, B, C, R(57)); \
-P3(C, D, E, A, B, R(58)); \
-P3(B, C, D, E, A, R(59)); \
-P4(A, B, C, D, E, R(60)); \
-P4(E, A, B, C, D, R(61)); \
-P4(D, E, A, B, C, R(62)); \
-P4(C, D, E, A, B, R(63)); \
-P4(B, C, D, E, A, R(64)); \
-P4(A, B, C, D, E, R(65)); \
-P4(E, A, B, C, D, R(66)); \
-P4(D, E, A, B, C, R(67)); \
-P4(C, D, E, A, B, R(68)); \
-P4(B, C, D, E, A, R(69)); \
-P4(A, B, C, D, E, R(70)); \
-P4(E, A, B, C, D, R(71)); \
-P4(D, E, A, B, C, R(72)); \
-P4(C, D, E, A, B, R(73)); \
-P4(B, C, D, E, A, R(74)); \
-P4(A, B, C, D, E, R(75)); \
-P4(E, A, B, C, D, R(76)); \
-P4(D, E, A, B, C, R(77)); \
-P4(C, D, E, A, B, R(78)); \
-P4(B, C, D, E, A, R(79));
-
-#define sha1_init(o) {	  \
-o[0] = INIT_A; \
-o[1] = INIT_B; \
-o[2] = INIT_C; \
-o[3] = INIT_D; \
-o[4] = INIT_E; \
-}
-
-#define sha1_block(b, o) {	\
-A = o[0]; \
-B = o[1]; \
-C = o[2]; \
-D = o[3]; \
-E = o[4]; \
-SHA1(A, B, C, D, E, b); \
-o[0] += A; \
-o[1] += B; \
-o[2] += C; \
-o[3] += D; \
-o[4] += E; \
-}
-
-#define dump_stuff_msg(msg, x, size) {	  \
-uint ii; \
-printf("%s : ", msg); \
-for (ii = 0; ii < (size)/4; ii++) \
-printf("%08x ", x[ii]); \
-printf("\n"); \
-}
-
-__kernel void sha1_crypt_kernel(__global uint* keys, __global uint* digest)
-{
-	uint W[16] = { 0 }, output[5];
-	uint temp, A, B, C, D, E;
-	uint gid = get_global_id(0);
-    uint base = gid * 16; /* fixed length */
-	uint num_keys = get_global_size(0);
-	uint len = 16;
-	uint i;
+    uchar temp[message_length];
+    for (int i = 0; i < message_length; i++) {
+        temp[i] = message[gid * message_length + i];
+    }
     
-	keys += base;
+    // perform hashing
+    SHA1Context context;
+    SHA1Reset(&context); // TODO needed?
+    SHA1Input(&context, temp, message_length);
+    SHA1Result(&context);
+
+    // copy to our output
+    uchar* cs = (uchar*) context.Message_Digest;
+    for (int i = 0; i < 5; i++) {
+        answer[gid * 20 + i * 4 + 3] = cs[i * 4 + 0];
+        answer[gid * 20 + i * 4 + 2] = cs[i * 4 + 1];
+        answer[gid * 20 + i * 4 + 1] = cs[i * 4 + 2];
+        answer[gid * 20 + i * 4 + 0] = cs[i * 4 + 3];
+    }
     
-	//for (i = 0; i < (len+3)/4; i++)
-	//	W[i] = SWAP32(*keys++);
     
-	//PUTCHAR_BE(W, len, 0x80);
-	// W[15] = len << 3;
-    
-	sha1_init(output);
-	sha1_block(W, output);
-    
-	digest[gid + 0 * num_keys] = SWAP32(output[0]);
-	digest[gid + 1 * num_keys] = SWAP32(output[1]);
-	digest[gid + 2 * num_keys] = SWAP32(output[2]);
-	digest[gid + 3 * num_keys] = SWAP32(output[3]);
-	digest[gid + 4 * num_keys] = SWAP32(output[4]);
 }

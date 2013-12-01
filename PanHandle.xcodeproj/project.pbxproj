@@ -13,7 +13,6 @@
 		5262457518438C6400B4C5B9 /* PanHandle.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 5262457418438C6400B4C5B9 /* PanHandle.1 */; };
 		5262457C18438C9900B4C5B9 /* OpenCL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5262457B18438C9900B4C5B9 /* OpenCL.framework */; };
 		5262457E18438E7C00B4C5B9 /* luhn_check.cl in Sources */ = {isa = PBXBuildFile; fileRef = 5262457D18438E7C00B4C5B9 /* luhn_check.cl */; };
-		52ECAFEA184A396C007266B2 /* hashset.c in Sources */ = {isa = PBXBuildFile; fileRef = 52ECAFE9184A396C007266B2 /* hashset.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -39,7 +38,6 @@
 		5262457418438C6400B4C5B9 /* PanHandle.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = PanHandle.1; sourceTree = "<group>"; };
 		5262457B18438C9900B4C5B9 /* OpenCL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenCL.framework; path = ../../../../System/Library/Frameworks/OpenCL.framework; sourceTree = "<group>"; };
 		5262457D18438E7C00B4C5B9 /* luhn_check.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; path = luhn_check.cl; sourceTree = "<group>"; };
-		52ECAFE9184A396C007266B2 /* hashset.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = hashset.c; sourceTree = "<group>"; };
 		52ECAFEB184A3992007266B2 /* hashset.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = hashset.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -90,7 +88,6 @@
 				5262457418438C6400B4C5B9 /* PanHandle.1 */,
 				523D8939184683A900CB2861 /* base64.c */,
 				523D893B184683BE00CB2861 /* base64.h */,
-				52ECAFE9184A396C007266B2 /* hashset.c */,
 				52ECAFEB184A3992007266B2 /* hashset.h */,
 			);
 			path = PanHandle;
@@ -149,7 +146,6 @@
 			files = (
 				523D8936184674B600CB2861 /* msha_kernel.cl in Sources */,
 				5262457E18438E7C00B4C5B9 /* luhn_check.cl in Sources */,
-				52ECAFEA184A396C007266B2 /* hashset.c in Sources */,
 				523D893A184683A900CB2861 /* base64.c in Sources */,
 				5262457318438C6400B4C5B9 /* main.c in Sources */,
 			);

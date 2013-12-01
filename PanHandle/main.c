@@ -15,28 +15,22 @@
 #include "luhn_check.cl.h"
 #include "msha_kernel.cl.h"
 
-void doit(unsigned long start, unsigned long num_values) {
+// djb2
+unsigned long hash_c(unsigned char *str) {
+    printf("%s\n", str);
+    unsigned long hash = 5381;
+    int c;
+    while ((c = *str++)) {
+        hash = ((hash << 5) + hash) + c;
+    }
+    return hash;
+}
+
+void doit(unsigned long start, unsigned long num_values, hashset_t set) {
     
     printf("start\n");
     
-    // read in all lines
-    int line_count = 1022;
-    char lines[line_count][29];
-    FILE *fp = fopen("/Users/john/Development/PanHandle/data/hashes.txt", "r");
-    for (int i = 0; i < line_count; i++) { // TODO flex
-        fgets(lines[i], 29, fp);
-    }
-    fclose(fp);
     
-    // decode each line
-    // TODO note for why i did this here
-    cl_uchar temp[20];
-    hashset_t set = hashset_create();
-    for (int i = 0; i < line_count; i++) { // TODO flex
-        Base64decode((void *)temp, lines[i]);
-        hashset_add(set, temp);
-    }
-        
     // Create out dispatch queue, prefer GPU but allow fallback
     dispatch_queue_t queue = gcl_create_dispatch_queue(CL_DEVICE_TYPE_GPU, NULL);
     if (queue == NULL) {
@@ -88,7 +82,7 @@ void doit(unsigned long start, unsigned long num_values) {
     short hash_length = 5 * sizeof(cl_uint); // 160 bits
     void* cl_keys = gcl_malloc(sizeof(cl_uchar) * count * 16, numbers, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR);
     void* cl_results = gcl_malloc(count * hash_length, NULL, CL_MEM_WRITE_ONLY);
-    void* hashes = malloc(hash_length * count);
+    cl_uchar* hashes = (cl_uchar*)malloc(hash_length * count);
     dispatch_sync(queue2, ^{
         cl_ndrange range = {1, {0, 0, 0}, {count, 0, 0}, {NULL, 0, 0}};
         sha1_crypt_kernel_kernel(&range, cl_keys, cl_results);
@@ -96,17 +90,15 @@ void doit(unsigned long start, unsigned long num_values) {
     });
     printf("produced SHA\n");
     
-    
-    printf("comparing\n");
     // we've got outselves the keys, and now we can go through them looking for matches
-    // TODO use hashmap of some sort for comparison
+    cl_uchar tmp[hash_length + 1];
     for (int i = 0; i < count; i++) {
-        if (hashset_is_member(set, ptr)) {
+        memcpy(tmp, &hashes[i * hash_length], hash_length);
+        tmp[hash_length] = 0; // terminate that biz
+        if (hashset_is_member(set, &tmp)) {
             printf("found: %hhu!\n", numbers[i]);
         }
-        ptr += hash_length * sizeof(cl_uint);
     }
-    printf("done\n");
     
     // Clean up after ourselves
     gcl_free(cl_candidates); gcl_free(cl_keys); gcl_free(cl_results);
@@ -118,12 +110,41 @@ void doit(unsigned long start, unsigned long num_values) {
 
 int main(int argc, const char * argv[]) {
     
+    struct pan {
+        char hash[20];
+        UT_hash_handle hh;
+    };
+    
+    // read in all lines
+    int line_count = 1022;
+    char lines[line_count][29];
+    FILE *fp = fopen("/Users/john/Development/PanHandle/data/hashes.txt", "r");
+    for (int i = 0; i < line_count; i++) { // TODO flex
+        fgets(lines[i], 29, fp);
+    }
+    fclose(fp);
+    
+    // decode each line
+    // TODO note for why i did this here
+    cl_char temp[20];
+    struct pan *pans = NULL, *pan;
+    for (int i = 0; i < line_count; i++) { // TODO flex
+        Base64decode((void *)temp, lines[i]);
+        pan->hash = temp;
+        HASH_ADD_STR(pans, hash, pan);
+    }
+
+    
+    
+    
     long start = 4242424242424242;
     long step = 1024 * 1024;
-    for (int i = 0; i < 10; i++) {
-        doit(start, step);
+    for (int i = 0; i < 1; i++) {
+        doit(start, step, pans);
         start += step;
     }
+    
+    free(pans);
     
     return 0;
     
