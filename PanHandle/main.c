@@ -1,4 +1,4 @@
- //
+//
 //  PanHandle
 //
 //  Created by John Crepezzi on 11/25/13.
@@ -114,12 +114,8 @@ PAN* construct_pan_lookup_set() {
 // check over an individual IIN
 void check_iin(int iin, PAN* lookup_set) {
     cl_ulong start = iin * 1000000000L;
-    long step = 1024 * 1024;
-    for (int i = 0; i < 100; i++) { // TODO only need to go to a billion
-        doit(start, step, lookup_set);
-        start += step;
-        printf(".");
-    }
+    long step = 1024 * 1024 * 2; // multiple of WG
+    doit(start, step, lookup_set);
 }
 
 int main(int argc, const char * argv[]) {
