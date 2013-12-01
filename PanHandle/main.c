@@ -100,8 +100,12 @@ void doit(unsigned long start, unsigned long num_values, PAN *set) {
     
 }
 
-int main(int argc, const char * argv[]) {
-    
+/**
+ Here we construct a Set that we can use to look up whether or not
+ a given hash we try is in our original set.  The lookups, they're
+ almost toooo fast
+ */
+PAN* construct_pan_lookup_set() {
     // read in all lines
     int line_count = 1022;
     char lines[line_count][29];
@@ -120,16 +124,22 @@ int main(int argc, const char * argv[]) {
         Base64decode(temp, lines[i]);
         johnset_add(&set, temp);
     }
+
+    return set;
+}
+
+int main(int argc, const char * argv[]) {
     
+    PAN *lookup_set = construct_pan_lookup_set();
     
     long start = 4730550000000000L;
     long step = 1024 * 1024;
     for (int i = 0; i < 1024 * 10; i++) {
-        doit(start, step, set);
+        doit(start, step, lookup_set);
         start += step;
     }
     
-    johnset_free(set);
+    johnset_free(lookup_set);
     
     return 0;
     
