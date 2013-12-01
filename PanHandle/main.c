@@ -119,18 +119,20 @@ PAN* construct_pan_lookup_set() {
     return set;
 }
 
-// go at it in batches
-int main(int argc, const char * argv[]) {
-    
-    PAN *lookup_set = construct_pan_lookup_set();
-    
-    long start = 4730550000000000L;
+// check over an individual IIN
+void check_iin(int iin, PAN* lookup_set) {
+    long start = iin * 10000000000L;
     long step = 1024 * 1024;
     for (int i = 0; i < 1024 * 10; i++) {
         doit(start, step, lookup_set);
         start += step;
     }
+}
+
+int main(int argc, const char * argv[]) {
     
+    PAN *lookup_set = construct_pan_lookup_set();
+    check_iin(473055, lookup_set);
     johnset_free(lookup_set);
     
     return 0;
