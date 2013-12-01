@@ -38,7 +38,8 @@
 		5262457418438C6400B4C5B9 /* PanHandle.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = PanHandle.1; sourceTree = "<group>"; };
 		5262457B18438C9900B4C5B9 /* OpenCL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenCL.framework; path = ../../../../System/Library/Frameworks/OpenCL.framework; sourceTree = "<group>"; };
 		5262457D18438E7C00B4C5B9 /* luhn_check.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; path = luhn_check.cl; sourceTree = "<group>"; };
-		52ECAFEB184A3992007266B2 /* hashset.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = hashset.h; sourceTree = "<group>"; };
+		52D1C350184ACB02009CCF14 /* johnset.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = johnset.h; sourceTree = "<group>"; };
+		52ECAFEB184A3992007266B2 /* uthash.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = uthash.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -88,7 +89,8 @@
 				5262457418438C6400B4C5B9 /* PanHandle.1 */,
 				523D8939184683A900CB2861 /* base64.c */,
 				523D893B184683BE00CB2861 /* base64.h */,
-				52ECAFEB184A3992007266B2 /* hashset.h */,
+				52ECAFEB184A3992007266B2 /* uthash.h */,
+				52D1C350184ACB02009CCF14 /* johnset.h */,
 			);
 			path = PanHandle;
 			sourceTree = "<group>";
