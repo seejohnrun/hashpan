@@ -101,7 +101,7 @@ PAN* construct_pan_lookup_set() {
     // read in all lines
     int line_count = 1022;
     char lines[line_count][29];
-    FILE *fp = fopen("/Users/john/Development/PanHandle/data/hashes.txt", "r");
+    FILE *fp = fopen("./data/hashes.txt", "r");
     for (int i = 0; i < line_count; i++) { // TODO flex
         fgets(lines[i], 29, fp);
         fgetc(fp); // skip newline
