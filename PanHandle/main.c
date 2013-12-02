@@ -18,12 +18,12 @@
 void doit(cl_ulong start, cl_ulong num_values, PAN *set) {
     
     // Create out dispatch queue, prefer GPU but allow fallback
-    dispatch_queue_t queue = gcl_create_dispatch_queue(CL_DEVICE_TYPE_GPU, NULL);
+    dispatch_queue_t queue = gcl_create_dispatch_queue(CL_DEVICE_TYPE_CPU, NULL);
     if (queue == NULL) {
         queue = gcl_create_dispatch_queue(CL_DEVICE_TYPE_CPU, NULL);
     }
 
-    dispatch_queue_t queue2 = gcl_create_dispatch_queue(CL_DEVICE_TYPE_GPU, NULL);
+    dispatch_queue_t queue2 = gcl_create_dispatch_queue(CL_DEVICE_TYPE_CPU, NULL);
     if (queue2 == NULL) {
         queue2 = gcl_create_dispatch_queue(CL_DEVICE_TYPE_CPU, NULL);
     }
@@ -114,7 +114,7 @@ PAN* construct_pan_lookup_set() {
 // check over an individual IIN
 void check_iin(int iin, PAN* lookup_set) {
     cl_ulong start = iin * 1000000000L;
-    long step = 1024 * 1024 * 2; // multiple of WG
+    long step = 1024 * 1024 * 4; // multiple of WG
     doit(start, step, lookup_set);
 }
 

@@ -10,9 +10,13 @@ PAN* johnset_initialize() {
     return pans;
 }
 
-unsigned int jenkins_one_at_a_time_hash(char *key, size_t len)
+// our hash function
+// this is a custom hash function with the idea that one day we could
+// also parallelize this computation in OpenCL
+// http://en.wikipedia.org/wiki/Jenkins_hash_function
+uint32_t jenkins_one_at_a_time_hash(char *key, size_t len)
 {
-    unsigned int hash, i;
+    uint32_t hash, i;
     for(hash = i = 0; i < len; ++i)
     {
         hash += key[i];
