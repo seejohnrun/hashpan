@@ -22,11 +22,6 @@ void doit(cl_ulong start, cl_ulong num_values, PAN *set) {
     if (queue == NULL) {
         queue = gcl_create_dispatch_queue(CL_DEVICE_TYPE_CPU, NULL);
     }
-
-    dispatch_queue_t queue2 = gcl_create_dispatch_queue(CL_DEVICE_TYPE_CPU, NULL);
-    if (queue2 == NULL) {
-        queue2 = gcl_create_dispatch_queue(CL_DEVICE_TYPE_CPU, NULL);
-    }
     
     /**
      Perform our luhn checks, setting anything to 0 that doesn't pass
@@ -35,20 +30,14 @@ void doit(cl_ulong start, cl_ulong num_values, PAN *set) {
      long as we have the start number
      */
     cl_ushort* checkbits = (cl_ushort*)malloc(sizeof(cl_ushort) * num_values);
+    cl_ulong* hashes = (cl_ulong*)malloc(sizeof(cl_ulong) * num_values);
     void* cl_checkbits = gcl_malloc(sizeof(cl_ushort) * num_values, checkbits, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR);
+    void* cl_results = gcl_malloc(sizeof(cl_ulong) * num_values, NULL, CL_MEM_WRITE_ONLY);
     dispatch_sync(queue, ^{
         cl_ndrange range = {1, {0, 0}, {num_values, 0}, {0, 0}};
         luhn_append_kernel(&range, start, cl_checkbits);
-        gcl_memcpy(checkbits, cl_checkbits, sizeof(cl_ushort) * num_values);
-    });
-    
-    // now we're ready to SHA1 the keys
-    void* cl_check = gcl_malloc(sizeof(cl_ushort) * num_values, checkbits, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR);
-    void* cl_results = gcl_malloc(sizeof(cl_ulong) * num_values, NULL, CL_MEM_WRITE_ONLY);
-    cl_ulong* hashes = (cl_ulong*)malloc(sizeof(cl_ulong) * num_values);
-    dispatch_sync(queue2, ^{
-        cl_ndrange range = {1, {0, 0}, {num_values, 0}, {0, 0}};
-        sha1_crypt_kernel_kernel(&range, start, cl_check, cl_results);
+        sha1_crypt_kernel_kernel(&range, start, cl_checkbits, cl_results);
+        gcl_memcpy(checkbits, cl_checkbits, num_values * sizeof(cl_ushort));
         gcl_memcpy(hashes, cl_results, num_values * sizeof(cl_ulong));
     });
     
@@ -60,10 +49,9 @@ void doit(cl_ulong start, cl_ulong num_values, PAN *set) {
     }
     
     // Clean up after ourselves
-    gcl_free(cl_checkbits); gcl_free(cl_check); gcl_free(cl_results);
+    gcl_free(cl_checkbits); gcl_free(cl_results);
     free(checkbits); free(hashes);
     dispatch_release(queue);
-    dispatch_release(queue2);
     
 }
 
@@ -101,13 +89,14 @@ void check_iin(int iin, PAN* lookup_set) {
     for (int i = 0; i < 10; i++) {
         long step = 1024 * 1024 * 100; // multiple of WG, up to 1bn
         doit(start + i * step, step, lookup_set);
+        printf(".");
     }
 }
 
 int main(int argc, const char * argv[]) {
     
     PAN *lookup_set = construct_pan_lookup_set();
-    check_iin(473055, lookup_set);
+    check_iin(515279, lookup_set);
     johnset_free(lookup_set);
     
     return 0;
