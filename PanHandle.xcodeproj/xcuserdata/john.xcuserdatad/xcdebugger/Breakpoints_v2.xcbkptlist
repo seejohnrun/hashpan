@@ -60,9 +60,7 @@
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "38"
-            endingLineNumber = "38"
-            landmarkName = "johnset_exists(PAN *pans, char *str)"
-            landmarkType = "7">
+            endingLineNumber = "38">
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>

@@ -1,5 +1,7 @@
 // This is cool because it makes it so that we only have to look at the numbers
-// which actually pass the luhn test
+// which actually pass the luhn test.  We don't even pass the number bases into here,
+// but rather compute those on the fly as we generate the checkbits.  That means
+// we're never stuck building up large arrays in memory just run over them.
 __kernel void luhn_append(const ulong base, __global ushort *candidates) {
     
     size_t gid = get_global_id(0);
@@ -26,6 +28,7 @@ __kernel void luhn_append(const ulong base, __global ushort *candidates) {
     short check = 10 - sum % 10;
     if (check == 10) { check = 0; }
     
+    // return the checkbits for this number
     candidates[gid] = check;
     
 }

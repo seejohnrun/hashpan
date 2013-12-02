@@ -17,18 +17,14 @@
 
 void doit(cl_ulong start, cl_ulong num_values, PAN *set) {
     
-    // Create out dispatch queue, prefer GPU but allow fallback
+    // Create our dispatch queue, prefer GPU but allow fallback
     dispatch_queue_t queue = gcl_create_dispatch_queue(CL_DEVICE_TYPE_CPU, NULL);
     if (queue == NULL) {
         queue = gcl_create_dispatch_queue(CL_DEVICE_TYPE_CPU, NULL);
     }
     
-    /**
-     Perform our luhn checks, setting anything to 0 that doesn't pass
-     COOLNOTE: We actually don't need to generate the numbers to use beforehand,
-     because we can use the OpenCL index (gid) to construct the number on the fly as
-     long as we have the start number
-     */
+    // Perform luhn completion, then use those bits to return full hashes
+    // of the SHA of the card numbers as ulongs
     cl_ushort* checkbits = (cl_ushort*)malloc(sizeof(cl_ushort) * num_values);
     cl_ulong* hashes = (cl_ulong*)malloc(sizeof(cl_ulong) * num_values);
     void* cl_checkbits = gcl_malloc(sizeof(cl_ushort) * num_values, checkbits, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR);
@@ -42,13 +38,14 @@ void doit(cl_ulong start, cl_ulong num_values, PAN *set) {
     });
     
     // we've got ourselves the keys, and now we can go through them looking for matches
+    // in our prebuilt, pre-base64decod'ed set
     for (int i = 0; i < num_values; i++) {
         if (johnset_exists(set, hashes[i]) != 0) {
             printf("found: %llu\n", (start + i) * 10 + checkbits[i]);
         }
     }
     
-    // Clean up after ourselves
+    // Be tidy
     gcl_free(cl_checkbits); gcl_free(cl_results);
     free(checkbits); free(hashes);
     dispatch_release(queue);
@@ -93,6 +90,7 @@ void check_iin(int iin, PAN* lookup_set) {
     }
 }
 
+// What to roll with
 int main(int argc, const char * argv[]) {
     
     PAN *lookup_set = construct_pan_lookup_set();

@@ -1,4 +1,7 @@
-/* header */
+/**
+ This is the SHA1 reference implementation wrapped in an OpenCL 
+ kernel I wrote.  The meat of the modifications here are at the end
+ */
 
 #define SHA1CircularShift(bits,word) ((((word) << (bits)) & 0xFFFFFFFF) | ((word) >> (32-(bits))))
 
@@ -162,7 +165,12 @@ void SHA1PadMessage(SHA1Context *context){
 	SHA1ProcessMessageBlock(context);
 }
 
-/* our kernel */
+/**
+ This kernel will take a checkbit, and for reach position, compute a SHA1 of the credit
+ card number that is at that position.  Once it has it, to save memory moving back and
+ forth, it will go ahead and hash the value it has into a ulong which it will return
+ to check against the hashset
+ */
 __kernel void sha1_crypt_kernel(const unsigned long base, __global ushort* bits, __global unsigned long* hashes)
 {
     uint message_length = 16;
@@ -173,7 +181,7 @@ __kernel void sha1_crypt_kernel(const unsigned long base, __global ushort* bits,
     
     // build a char array
     char temp[message_length];
-    sprintf(&temp, (const char *)"%lu", num); // lu due to opencl being opencl: http://www.khronos.org/registry/cl/sdk/1.2/docs/man/xhtml/printfFunction.html
+    sprintf(&temp, (const char *)"%lu", num); // lu instead of luu due to opencl being opencl: http://www.khronos.org/registry/cl/sdk/1.2/docs/man/xhtml/printfFunction.html
     
     // perform hashing
     SHA1Context context;
