@@ -163,7 +163,7 @@ void SHA1PadMessage(SHA1Context *context){
 }
 
 /* our kernel */
-__kernel void sha1_crypt_kernel(const unsigned long base, __global ulong* bits, __global unsigned long* hashes)
+__kernel void sha1_crypt_kernel(const unsigned long base, __global ushort* bits, __global unsigned long* hashes)
 {
     uint message_length = 16;
     uint gid = get_global_id(0);

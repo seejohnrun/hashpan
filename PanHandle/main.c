@@ -34,22 +34,22 @@ void doit(cl_ulong start, cl_ulong num_values, PAN *set) {
      because we can use the OpenCL index (gid) to construct the number on the fly as
      long as we have the start number
      */
-    cl_ulong* checkbits = (cl_ulong*)malloc(sizeof(cl_ulong) * num_values);
-    void* cl_checkbits = gcl_malloc(sizeof(cl_ulong) * num_values, checkbits, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR);
+    cl_ushort* checkbits = (cl_ushort*)malloc(sizeof(cl_ushort) * num_values);
+    void* cl_checkbits = gcl_malloc(sizeof(cl_ushort) * num_values, checkbits, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR);
     dispatch_sync(queue, ^{
         cl_ndrange range = {1, {0, 0}, {num_values, 0}, {0, 0}};
-        luhn_append_kernel(&range, start, (cl_ulong*)cl_checkbits);
-        gcl_memcpy(checkbits, cl_checkbits, sizeof(cl_ulong) * num_values);
+        luhn_append_kernel(&range, start, cl_checkbits);
+        gcl_memcpy(checkbits, cl_checkbits, sizeof(cl_ushort) * num_values);
     });
     
     // now we're ready to SHA1 the keys
-    void* cl_check = gcl_malloc(sizeof(cl_ulong) * num_values, checkbits, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR);
+    void* cl_check = gcl_malloc(sizeof(cl_ushort) * num_values, checkbits, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR);
     void* cl_results = gcl_malloc(sizeof(cl_ulong) * num_values, NULL, CL_MEM_WRITE_ONLY);
     cl_ulong* hashes = (cl_ulong*)malloc(sizeof(cl_ulong) * num_values);
     dispatch_sync(queue2, ^{
         cl_ndrange range = {1, {0, 0}, {num_values, 0}, {0, 0}};
         sha1_crypt_kernel_kernel(&range, start, cl_check, cl_results);
-        gcl_memcpy(hashes, cl_results, num_values * sizeof(cl_uint));
+        gcl_memcpy(hashes, cl_results, num_values * sizeof(cl_ulong));
     });
     
     // we've got ourselves the keys, and now we can go through them looking for matches

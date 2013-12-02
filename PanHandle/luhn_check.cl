@@ -1,6 +1,6 @@
 // This is cool because it makes it so that we only have to look at the numbers
 // which actually pass the luhn test
-__kernel void luhn_append(const ulong base, __global ulong *candidates) {
+__kernel void luhn_append(const ulong base, __global ushort *candidates) {
     
     size_t gid = get_global_id(0);
     ulong num = base + gid;
