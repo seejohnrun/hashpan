@@ -42,39 +42,26 @@ void doit(cl_ulong start, cl_ulong num_values, PAN *set) {
         gcl_memcpy(candidates, cl_candidates, sizeof(cl_ulong) * num_values);
     });
     
-    // convert the numbers into a char array
-    printf("convert\n");
-    unsigned long long num;
-    void *numbers = malloc(sizeof(cl_char) * 16 * num_values + 1);
-    void *ptr = numbers;
-    for (int j = 0; j < num_values; j++) {
-        num = (start + j) * 10L + candidates[j];
-        snprintf(ptr, 17, "%llu", num);
-        ptr += 16 * sizeof(cl_char);
-    }
-    printf("converted\n");
-    
     // now we're ready to SHA1 the keys
-    short hash_length = 5 * sizeof(cl_uint); // 160 bits
-    void* cl_keys = gcl_malloc(sizeof(cl_char) * num_values * 16, numbers, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR);
-    void* cl_results = gcl_malloc(sizeof(cl_uint) * num_values, NULL, CL_MEM_WRITE_ONLY);
-    cl_uint* hashes = (cl_uint*)malloc(sizeof(cl_uint) * num_values);
+    void* cl_keys = gcl_malloc(sizeof(cl_ulong) * num_values, candidates, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR);
+    void* cl_results = gcl_malloc(sizeof(cl_ulong) * num_values, NULL, CL_MEM_WRITE_ONLY);
+    cl_ulong* hashes = (cl_ulong*)malloc(sizeof(cl_ulong) * num_values);
     dispatch_sync(queue2, ^{
         cl_ndrange range = {1, {0, 0}, {num_values, 0}, {0, 0}};
-        sha1_crypt_kernel_kernel(&range, cl_keys, cl_results);
-        gcl_memcpy(hashes, cl_results, num_values * hash_length);
+        sha1_crypt_kernel_kernel(&range, start, cl_keys, cl_results);
+        gcl_memcpy(hashes, cl_results, num_values * sizeof(cl_uint));
     });
     
     // we've got ourselves the keys, and now we can go through them looking for matches
     for (int i = 0; i < num_values; i++) {
-        if (johnset_exists(set, &hashes[i]) != 0) {
-            printf("found: %d - %llu\n", i, (start + i) * 10 + candidates[i]);
+        if (johnset_exists(set, hashes[i]) != 0) {
+            printf("found: %llu\n", (start + i) * 10 + candidates[i]);
         }
     }
     
     // Clean up after ourselves
     gcl_free(cl_candidates); gcl_free(cl_keys); gcl_free(cl_results);
-    free(candidates); free(hashes); free(numbers);
+    free(candidates); free(hashes);
     dispatch_release(queue);
     dispatch_release(queue2);
     
@@ -111,7 +98,7 @@ PAN* construct_pan_lookup_set() {
 // check over an individual IIN
 void check_iin(int iin, PAN* lookup_set) {
     cl_ulong start = iin * 1000000000L;
-    long step = 1024 * 1024 * 16; // multiple of WG
+    long step = 1024 * 1024 * 100; // multiple of WG
     doit(start, step, lookup_set);
 }
 

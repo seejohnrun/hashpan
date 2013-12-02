@@ -1,7 +1,7 @@
 #include "uthash.h"
 
 typedef struct PAN {
-    uint32_t hash;
+    unsigned long hash;
     UT_hash_handle hh;
 } PAN;
 
@@ -10,34 +10,28 @@ PAN* johnset_initialize() {
     return pans;
 }
 
-// our hash function
-// this is a custom hash function with the idea that one day we could
-// also parallelize this computation in OpenCL
-// http://en.wikipedia.org/wiki/Jenkins_hash_function
-uint32_t jenkins_one_at_a_time_hash(char *key, size_t len)
+// djb2 hash function
+// http://www.cse.yorku.ca/~oz/hash.html
+unsigned long djb2(char *key, size_t len)
 {
-    uint32_t hash, i;
-    for(hash = i = 0; i < len; ++i)
-    {
-        hash += key[i];
-        hash += (hash << 10);
-        hash ^= (hash >> 6);
+    unsigned long hash = 5381;
+    int c;
+    for (int i = 0; i < len; i++) {
+        c = *key++;
+        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
     }
-    hash += (hash << 3);
-    hash ^= (hash >> 11);
-    hash += (hash << 15);
     return hash;
 }
 
 void johnset_add(PAN **pans, char *str) {
     PAN *s = (PAN*) malloc(sizeof(PAN));
-    s->hash = jenkins_one_at_a_time_hash(str, 20);
-    HASH_ADD_INT(*pans, hash, s);
+    s->hash = djb2(str, 20);
+    HASH_ADD(hh, *pans, hash, sizeof(unsigned long), s);
 }
 
-int johnset_exists(PAN *pans, unsigned int *i) {
+int johnset_exists(PAN *pans, unsigned long h) {
     PAN *s;
-    HASH_FIND_INT(pans, &i, s);
+    HASH_FIND(hh, pans, &h, sizeof(unsigned long), s);
     return s ? 1 : 0;
 }
 

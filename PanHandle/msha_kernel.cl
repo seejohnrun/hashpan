@@ -163,44 +163,42 @@ void SHA1PadMessage(SHA1Context *context){
 }
 
 /* our kernel */
-__kernel void sha1_crypt_kernel(__global char* message, __global unsigned int* hashes)
+__kernel void sha1_crypt_kernel(const unsigned long base, __global ulong* bits, __global unsigned long* hashes)
 {
     uint message_length = 16;
     uint gid = get_global_id(0);
 
-    uchar temp[message_length];
-    for (int i = 0; i < message_length; i++) {
-        temp[i] = message[gid * message_length + i];
-    }
+    // the number in question
+    unsigned long num = (base + gid) * 10 + bits[gid];
+    
+    // build a char array
+    char temp[message_length];
+    sprintf(&temp, (const char *)"%lu", num); // lu due to opencl being opencl: http://www.khronos.org/registry/cl/sdk/1.2/docs/man/xhtml/printfFunction.html
     
     // perform hashing
     SHA1Context context;
     SHA1Reset(&context);
     SHA1Input(&context, temp, message_length);
     SHA1Result(&context);
-
+    
     // copy to our output
+    // NOTE: answer doesn't need to necessarily be built up
     char answer[20];
     char* cs = (char*) context.Message_Digest;
     for (int i = 0; i < 5; i++) {
-        answer[gid * 20 + i * 4 + 3] = cs[i * 4 + 0];
-        answer[gid * 20 + i * 4 + 2] = cs[i * 4 + 1];
-        answer[gid * 20 + i * 4 + 1] = cs[i * 4 + 2];
-        answer[gid * 20 + i * 4 + 0] = cs[i * 4 + 3];
+        answer[i * 4 + 3] = cs[i * 4 + 0];
+        answer[i * 4 + 2] = cs[i * 4 + 1];
+        answer[i * 4 + 1] = cs[i * 4 + 2];
+        answer[i * 4 + 0] = cs[i * 4 + 3];
     }
-
     
     // turn that guy into a hash while we're sitting here looking at it
-    unsigned int hash, i;
-    for(hash = i = 0; i < 20; ++i)
-    {
-        hash += answer[i];
-        hash += (hash << 10);
-        hash ^= (hash >> 6);
+    unsigned long hash = 5381;
+    int c;
+    for (int i = 0; i < 20; i++) {
+        c = answer[i];
+        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
     }
-    hash += (hash << 3);
-    hash ^= (hash >> 11);
-    hash += (hash << 15);
-    hashes[gid] = &hash;
+    hashes[gid] = hash;
     
 }
