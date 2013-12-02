@@ -163,7 +163,7 @@ void SHA1PadMessage(SHA1Context *context){
 }
 
 /* our kernel */
-__kernel void sha1_crypt_kernel(__global char* message, __global char* answer)
+__kernel void sha1_crypt_kernel(__global char* message, __global unsigned int* hashes)
 {
     uint message_length = 16;
     uint gid = get_global_id(0);
@@ -180,6 +180,7 @@ __kernel void sha1_crypt_kernel(__global char* message, __global char* answer)
     SHA1Result(&context);
 
     // copy to our output
+    char answer[20];
     char* cs = (char*) context.Message_Digest;
     for (int i = 0; i < 5; i++) {
         answer[gid * 20 + i * 4 + 3] = cs[i * 4 + 0];
@@ -187,6 +188,19 @@ __kernel void sha1_crypt_kernel(__global char* message, __global char* answer)
         answer[gid * 20 + i * 4 + 1] = cs[i * 4 + 2];
         answer[gid * 20 + i * 4 + 0] = cs[i * 4 + 3];
     }
+
     
+    // turn that guy into a hash while we're sitting here looking at it
+    unsigned int hash, i;
+    for(hash = i = 0; i < 20; ++i)
+    {
+        hash += answer[i];
+        hash += (hash << 10);
+        hash ^= (hash >> 6);
+    }
+    hash += (hash << 3);
+    hash ^= (hash >> 11);
+    hash += (hash << 15);
+    hashes[gid] = &hash;
     
 }

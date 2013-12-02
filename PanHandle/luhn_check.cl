@@ -6,7 +6,7 @@ __kernel void luhn_append(const ulong base, __global ulong *candidates) {
     ulong num = base + gid;
     
     // compute the luhn sans checkbit
-    short dbl = 0;
+    short dbl = 1;
     short sum = 0;
     short digit;
     while (num > 0) {
@@ -24,6 +24,8 @@ __kernel void luhn_append(const ulong base, __global ulong *candidates) {
     
     // get the check digit, and build the full number
     short check = 10 - sum % 10;
+    if (check == 10) { check = 0; }
+    
     candidates[gid] = check;
     
 }

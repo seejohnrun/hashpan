@@ -35,10 +35,9 @@ void johnset_add(PAN **pans, char *str) {
     HASH_ADD_INT(*pans, hash, s);
 }
 
-int johnset_exists(PAN *pans, char *str) {
+int johnset_exists(PAN *pans, unsigned int *i) {
     PAN *s;
-    uint32_t hash = jenkins_one_at_a_time_hash(str, 20);
-    HASH_FIND_INT(pans, &hash, s);
+    HASH_FIND_INT(pans, &i, s);
     return s ? 1 : 0;
 }
 
