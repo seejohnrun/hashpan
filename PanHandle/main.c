@@ -59,7 +59,7 @@ void doit(cl_ulong start, cl_ulong num_values, PAN *set) {
  we're not doing it repeatedly later on
  */
 PAN* construct_pan_lookup_set() {
-    // read in all lines
+    // read in all lines - ditto comment from main
     int line_count = 1022;
     char lines[line_count][29];
     FILE *fp = fopen("./data/hashes.txt", "r");
@@ -83,17 +83,38 @@ PAN* construct_pan_lookup_set() {
 // check over an individual IIN
 void check_iin(int iin, PAN* lookup_set) {
     cl_ulong start = iin * 1000000000L;
-    for (int i = 0; i < 10; i++) {
-        long step = 1024 * 1024 * 100; // multiple of WG, up to 1bn
+    for (int i = 0; i < 2; i++) {
+        long step = 1024 * 1024 * 100; // my computer, is weak
         doit(start + i * step, step, lookup_set);
     }
 }
 
 // What to roll with
 int main(int argc, const char * argv[]) {
+
+    // load iins (hard coded size, to keep this code easy on the eyes - I figure
+    // we have more interesting things to look at)
+    int iins_count = 73;
+    int iins[iins_count];
+    char temp[6];
+    FILE *fp = fopen("./data/iins.txt", "r");
+    for (int i = 0; i < iins_count; i++) {
+        fgets(temp, 7, fp);
+        iins[i] = atoi(temp);
+        fgetc(fp); // skip newline
+    }
+    fclose(fp);
     
+    // load set
     PAN *lookup_set = construct_pan_lookup_set();
-    check_iin(515279, lookup_set);
+    
+    // check each
+    for (int i = 0; i < iins_count; i++) {
+        printf("checking iin %d\n", iins[i]);
+        check_iin(iins[i], lookup_set);
+    }
+    
+    // clean up
     johnset_free(lookup_set);
     
     return 0;
