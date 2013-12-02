@@ -98,6 +98,16 @@ Some performance improvements I almost had working, but ended up pulling:
   screen flickers and basically stops working - but who knows, maybe I could
   push it further
 
+## In case
+
+iins.txt obtained like this:
+
+``` ruby
+File.write('./data/iins.txt', File.readlines('./data/pans.txt').map { |l| l[0..5] }.uniq.join("\n"))
+```
+
+just didn't feel like muddling my C code with it
+
 ## Thanks
 
 Thanks so much for the challenge :)  I had a good time learning OpenCL, getting

@@ -86,7 +86,6 @@ void check_iin(int iin, PAN* lookup_set) {
     for (int i = 0; i < 10; i++) {
         long step = 1024 * 1024 * 100; // multiple of WG, up to 1bn
         doit(start + i * step, step, lookup_set);
-        printf(".");
     }
 }
 
