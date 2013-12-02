@@ -1,32 +1,102 @@
+## TL;DR
 
+This is a highly optimized implementation, written for OpenCL in C (with a
+few snazzy tricks up the sleeves to make the amount of work more attainable.)
 
-I've known for a long time that there was a checkbit in credit card numbers,
-but I never really looked into how they worked until now.
+This thing computes an entire IIN in under 1.5 minutes (under two hours for
+the whole shabam) on my oldish Macbook Air (but I'd love to have a shot at
+running it on a Mac Pro)
 
-My initial implementation (in Ruby) was a basic Luhn-check followed by a SHA1
-and comparison against a map of stored post-b64 from hashes.txt
+* OpenCL
+* UTHash (with a custom hashset built on top of it)
+* The SHA1 reference implementation built inside of a custom OpenCL Kernel
+* passing around minimal data
+* instead of hashing to char arrays, hash all the way to the numeric
 
-Obviously, this one was pretty slow and wouldn't be the answer.
+## A little bit more detail
 
-I rewrote that jam in Java - faster, but not by much especially for large runs.
+## The whole story
 
-Then I got the idea to perform the computations using OpenCL.  I tried first
-implementing that in Java on top of aparapi.  Aparapi was a great experience,
-and definitely a project I'd come back at for another look - but not
-something that was going to give me the flexibility I needed to be able
-to experiment (no exceptions, no new operator, means that using basically
-any Java algorithm implementation as part of a Kernel is a non-starter)
+I've always (okay, not always, but for a while) known that there was some
+format to a credit card number other than just random digits.  I just never
+really knew what it was.
 
-So I went over to C and started writing.
+A little Wikipedia action showed me that the first six digits on a 16 digit card
+were the "IIN" (a number identifying the issuing bank).  The last digit was a
+checkbit to prevent transmission errors (for some reason I had always
+suspected this bit was so that gas stations in the middle of nowhere with no
+internet connection could rule out obvious fraud but apparently that's not the
+case).
 
-I needed a fast SHA1 algorithm, one which I ended up "ripping" out of John
-the Ripper (the popular password cracking tool) and making a few modifications
-to in order to fit my needs.
+So I looked at `pans.txt` and noticed a lot of repeated first six digits.  I
+took that as a hint that I should probably start with those IINs and see where
+it led me.
 
-Now I had the luhn check (a fast implementation I wrote myself after a few
-iterations of playing with other implementations), and the SHA1 running on
-top of OpenCL.  The SHA1 was running on the GPUs and the Luhn on the CPUs.
+So I wrote up a simple Ruby script, that just ran through all the numbers,
+determined if they passed a luhn check (to cut down on the number of SHAs I
+had to generate) and compared them to a HashMap of the digests from
+base64 decoding the supplied hashes.
 
-I thought of a way to cut the work the luhn-check would have to do down, by
-abusing the fact that the checkbit means that once I find a value, nothing
-else with those starting digits will be valid.
+Slooowwwwww
+
+So I rewrote that thing in Java.  Definitely faster, but obviously this isn't
+an single-order-of-magnitude-makes-a-difference problem.  I thought it would
+be cool to play around with doing it on OpenCL - which I had heard about but
+never had a chance to play with.  I found a few libraries that wrap OpenCL,
+most notably aparapi (https://code.google.com/p/aparapi/).  aparapi doesn't
+even require that you write your kernels in C - which is badass.
+
+Getting the luhn check to work in aparapi was pretty much a breeze (I even
+was happy to make the luhn check operate directly on longs - check out my luhn
+implementation - I'm pretty excited about it), but when I went
+to implement the SHA1 on aparapi, I ran into all kinds of issues.  This is
+because aparapi doesn't support Java constructs like catch exceptions, or using
+new (which is pretty much a must-have for any OTB Java SHA1 implementation).
+
+I decided if I was going to go write the kernel in C, I might as well write
+the whole thing in C - so I started over again.
+
+I wrote what I had already in C, and then I took the SHA1 C reference
+implementation and after some fuss, successfully wrapped a kernel around it.
+
+Now the next piece of the puzzle was the lookups.  C doesn't have a HashSet or
+Map you can just do anything you please with whenever you want, so I ended up
+pulling in UTHash (which I've also never used before) and writing a custom
+Set implement (johnset lol) on top of it.  I used a hash function to convert
+the char arrays into uint so I could pass around less data, and while I was
+at it, I actually computed the hashtable values in OpenCL as part of the hashing
+operation.
+
+[intermission]
+
+So now for each IIN I was computing 10bn combinations.  That's a lot, so I
+started thinking it'd be neat if I could instantly jump from one luhn number to
+the next.  I wasted a bunch of time on that, before I came up with the idea that
+instead of running over every card number, I could run over all but the last
+bit, and compute the appropriate checkbit.  Booyah, so more shrinking arrays to
+get rid of the non-luhn.  It was alllll luhn now.
+
+Then I spent a bunch of time tweaking and pinching bits (which is a big deal
+in OpenCL) - most notably the luhn check actually only sends back checkbits -
+with arrays offsets for the CC numbers that they correspond to.
+
+Then, I was ready - and that's right now - so I'm going to go `git rm` some
+files and submit a PR.
+
+## Where Next
+
+I think many further performance improvements can definitely be made:
+
+* I played around with, but ultimately "ripped out" the SHA1 implementation
+  from JohnTheRipper
+
+* Synchronizing work on CPU and GPU to run concurrenly.  Already my laptop's
+  screen flickers and basically stops working - but who knows, maybe I could
+  push it further
+
+## Thanks
+
+Thanks so much for the challenge :)  I had a good time learning OpenCL, getting
+back into C, and spending the last week thinking about how to make this fast.
+
+Looking forward to the next challenge!
