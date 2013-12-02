@@ -9,11 +9,13 @@ This thing computes an entire IIN in under 1.5 minutes (under two hours for
 the whole shabam) on my oldish Macbook Air (but I'd love to have a shot at
 running it on a Mac Pro)
 
-* OpenCL
+* OpenCL the whole way through
 * UTHash (with a custom hashset built on top of it)
-* The SHA1 reference implementation built inside of a custom OpenCL Kernel
-* passing around minimal data
-* instead of hashing to char arrays, hash all the way to the numeric
+* SHA1 reference implementation built inside of a custom OpenCL Kernel
+* passing around minimal data (checkbits only)
+* woooo
+
+This was my first experience with OpenCL too - good stuff
 
 ## A little bit more detail
 
