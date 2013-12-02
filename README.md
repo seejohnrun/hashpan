@@ -15,6 +15,8 @@ running it on a Mac Pro)
 * passing around minimal data (checkbits only)
 * woooo
 
+This was my first experience with OpenCL too - good stuff
+
 ## A little bit more detail
 
 ## The whole story
